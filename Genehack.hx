@@ -28,12 +28,15 @@ class Genehack extends AbilityBase
 {
 	var _controller : Controller = null;
 	
+	var _actionOneButton : ActionButton = null;
+	var _actionTwoButton : ActionButton = null;
+	
 
 	public function new(X:Float=0, Y:Float=0, controls:Controller) 
 	{
 		super(X, Y);
 		
-		_phasesThroughWalls = true;
+		_phasesThroughWalls = false;
 		
 		
 		_controller = controls;
@@ -49,8 +52,8 @@ class Genehack extends AbilityBase
 		_actionTwoActivate = MoveShiftOn;
 		_actionTwoInactive = MoveShiftOff;
 		
-		controls.SetActionStyle(1, KeyStyle.HOLD);
-		controls.SetActionStyle(2, KeyStyle.HOLD);
+		_actionOneButton = _controller.SetButton("space bar action", null, KeyStyle.HOLD);
+		_actionTwoButton = _controller.SetButton("shift action", null, KeyStyle.HOLD);
 		
 		_jumpStrength = GenehackConstants.kJump;
 	
@@ -71,7 +74,7 @@ class Genehack extends AbilityBase
 		if (_actionOneActivate != null)
 		{
 			// If so, check for controller value and activate
-			if (_controller.GetActionKeyValue(1))
+			if (_actionOneButton.GetKeyInput())
 			{
 				_actionOneActivate();
 			}
@@ -88,7 +91,7 @@ class Genehack extends AbilityBase
 		if (_actionTwoActivate != null)
 		{
 			// If so, check for controller value and activate
-			if (_controller.GetActionKeyValue(2))
+			if (_actionTwoButton.GetKeyInput())
 			{
 				_actionTwoActivate();
 			}

@@ -29,28 +29,94 @@ class IntPoint
 
 
 
+class ActionButton
+{
+	public var ButtonName : String;
+	public var Keys : Array<String> = new Array<String>();
+	
+	var _style : KeyStyle = PRESS;
+	
+	var _active : Bool = false;
+	
+	public function new (name : String, keyList : Array<String> = null, inputStyle : KeyStyle)
+	{
+		ButtonName = name;
+		Keys = keyList;
+		_style = inputStyle;
+		_active = false;
+	}
+	
+	
+	
+	/**
+	 * Set a key, adding to its input list and changing its style.
+	 * @param	keyList			Keys to add to this key's list.
+	 * @param	?inputStyle		The new input style. Defaults to PRESS.
+	 */
+	public function SetKey(keyList : Array<String>, inputStyle : KeyStyle) : Void
+	{
+		// Add the newly assigned keys to this one, and change styles.
+		if (keyList != null) 
+		{
+			Keys = Keys.concat(keyList);
+		}
+		
+		_style = inputStyle;
+		_active = false;
+	}
+	
+	
+	
+	/**
+	 * Get the value of an action key, based on its key style.
+	 * If it's a hold, it returns 1 for held and 0 for not. 
+	 * If it's a press, it returns whether it was just pressed.
+	 * If it's a toggle, it returns the on/off state of that key toggle.
+	 * @return					Boolean, for if that action is active/
+	 * 							toggled.
+	 */
+	public function GetKeyInput() : Bool
+	{
+		var _returnValue : Bool = false;
+		
+		switch (_style)
+		{
+			case PRESS:
+				_returnValue = FlxG.keys.anyJustPressed(Keys);
+			case TOGGLE:
+				if (FlxG.keys.anyJustPressed(Keys))
+				{
+					_active = !_active;
+				}
+				_returnValue = _active;
+			case HOLD:
+				_returnValue = FlxG.keys.anyPressed(Keys);
+				_active = _returnValue;
+		}
+		
+		return _returnValue;
+	}
+}
+
+
+
 /**
  * The controller is meant to provide a control interface. 
  * @author Colin McMillan
  */
 class Controller
 {
-	var _actionOneKeys : Array<String> = new Array<String>();
-	var _actionTwoKeys : Array<String> = new Array<String>();
-	
-	var _actionOneStyle : KeyStyle = PRESS;
-	var _actionTwoStyle : KeyStyle = PRESS;
-	
-	var _actionOneOn : Bool = false;
-	var _actionTwoOn : Bool = false;
+	var _actionList : Array<ActionButton>;
+	var _buttonsInUse : Array<String>;
 	
 	
 	/**
 	 * Create a new controller.
 	 */
-	public function new(?actionOne : Array<String> = null, ?actionTwo : Array<String> = null)
+	public function new()
 	{		
-		SetActionKeys(actionOne, actionTwo);
+		_actionList = new Array<ActionButton>();
+		_buttonsInUse = new Array<String>();
 	}
 	
 	
@@ -93,99 +159,62 @@ class Controller
 		
 		return _directions;
 	}
+
 	
 	
 	
-	/**
-	 * Get the value of an action key, based on its key style.
-	 * If it's a hold, it returns 1 for held and 0 for not. 
-	 * If it's a press, it returns whether it was just pressed.
-	 * If it's a toggle, it returns the on/off state of that key toggle.
-	 * @param	actionNumber	1 or 2, for the respective action key
-	 * @return					Boolean, for if that action is active/
-	 * 							toggled.
-	 */
-	public function GetActionKeyValue(actionNumber : Int) : Bool
-	{
-		var _returnValue : Bool = false;
-		
-		// Check what action number is set.
-		if ((actionNumber == 1) && (_actionOneStyle != null))
-		{
-			switch (_actionOneStyle)
-			{
-			case PRESS:
-				_returnValue = FlxG.keys.anyJustPressed(_actionOneKeys);
-			case TOGGLE:
-				if (FlxG.keys.anyJustPressed(_actionOneKeys))
-				{
-					_actionOneOn = !_actionOneOn;
-				}
-				_returnValue = _actionOneOn;
-			case HOLD:
-				_returnValue = FlxG.keys.anyPressed(_actionOneKeys);
-			}
-		}
-		else if ((actionNumber == 2) && (_actionTwoStyle != null))
-		{
-			switch (_actionTwoStyle)
-			{
-			case PRESS:
-				_returnValue = FlxG.keys.anyJustPressed(_actionTwoKeys);
-			case TOGGLE:
-				if (FlxG.keys.anyJustPressed(_actionTwoKeys))
-				{
-					_actionTwoOn = !_actionTwoOn;
-					_returnValue = _actionTwoOn;
-				}
-			case HOLD:
-				_returnValue = FlxG.keys.anyPressed(_actionTwoKeys);
-			}
-		}
-		
-		return _returnValue;
-	}
 	
-	
-	
-	/**
-	 * Set up action keys. Called when creating a controller, but can also be
-	 * set separately.
-	 * @param	actionOne		The set of keys usable to trigger action one.
-	 * @param	actionTwo		The set of keys usable to trigger action one.
-	 */
-	public function SetActionKeys(actionOne : Array<String>, actionTwo : Array<String>) : Void
+
+
+	public function SetButton(actionName : String, ?keyList : Array<String> = null, inputStyle : KeyStyle) : ActionButton
 	{	
-		if (actionOne != null)
+		var buttonChanged : ActionButton = null;
+		
+		// If keys are given...
+		if (keyList != null) 
 		{
-			_actionOneKeys = actionOne;
-			_actionOneOn = false;
+			// For each key provided...
+			for (enteredKey in keyList) 
+			{
+				// ... remove that key from the existing "in use" list. If the key is removed thusly...
+				if (_buttonsInUse.remove(enteredKey))
+				{
+					// Go through the action list and remove that key from other actions.
+					for (action in _actionList)
+					{
+						action.Keys.remove(enteredKey);
+					}
+					// Now each key is free for the new assignment.
+				}
+				// And add the entered key into the buttonsInUse array.
+				_buttonsInUse.push(enteredKey);
+			}
+			// Now every key in the new key list is freed and entered into the list of in-use keys for the controller.
+		}
+		// This SHOULD prevent keys being used for multiple actions. Yanks out already-in-use keys if applicable,
+		// and adds the new keys into the list of all keys in use either way.
+		
+		// For each action button that already exists...
+		for (existingActionButton in _actionList)
+		{
+			// Check if its name matches the new one.
+			if (existingActionButton.ButtonName == actionName)
+			{
+				// If so, add to its keylist and set inputStyle.
+				existingActionButton.SetKey(keyList, inputStyle);
+				buttonChanged = existingActionButton;
+			}
+		} // The combination of the for scan and the if SHOULD prevent duplicate action names.
+		
+		// If the above sequence didn't change a key...
+		if (buttonChanged == null)
+		{
+			// Create a new ActionButton, and add it to the actionList.
+			buttonChanged = new ActionButton(actionName, keyList, inputStyle);
+			_actionList.push(buttonChanged);
 		}
 		
-		if (actionTwo != null)
-		{
-			_actionTwoKeys = actionTwo;
-			_actionTwoOn = false;
-		}
-	}
-	
-	
-	
-	/**
-	 * Set up action keys. Called when creating a controller, but can also be
-	 * set separately.
-	 * @param	oneStyle		The button style of action one.
-	 * @param	twoStyle		The button style of action one.
-	 */
-	public function SetActionStyle(slot : Int, style : KeyStyle) : Void
-	{	
-		if (slot == 1)
-		{
-			_actionOneStyle = style;
-		}
-		else if (slot == 2)
-		{
-			_actionTwoStyle = style;
-		}
+		
+		return buttonChanged;
 	}
 }
