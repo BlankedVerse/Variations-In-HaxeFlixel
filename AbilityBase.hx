@@ -3,6 +3,8 @@ package ;
 import flixel.FlxSprite;
 import flixel.FlxObject;
 
+import Controller.IntPoint;
+
 
 enum Facing
 {
@@ -43,10 +45,14 @@ class CharacterConstants
 	
 	public inline static var kJumpGhosting : Int = 6;
 	public inline static var kJumpHold : Int = 15;
+	
 	public inline static var kHoverDuration : Int = 20;
 	
 	public inline static var kSkidDivisor : Int = 3;
 	public inline static var kClimbGrip : Int = 2;
+	
+	public inline static var kDashLength : Int = 20;
+	public inline static var kDashSpeed : Int = 50;
 }
 
 
@@ -81,8 +87,6 @@ class AbilityBase extends FlxSprite
 	
 	var _maxFall : Int = CharacterConstants.kBaseFallSpeed;
 	
-	var _climbSpeed : Int = 0;
-	
 	var _jumpStrength : Int = 0;
 	var _jumpHold : Int = 0;
 	var _jumpGhost : Int = CharacterConstants.kJumpGhosting;
@@ -94,6 +98,12 @@ class AbilityBase extends FlxSprite
 	
 	var _hoverStrength : Int = 0;
 	var _hoverDuration : Int = 0;
+	
+	var _climbSpeed : Int = 0;
+	
+	var _dashLength : Int = -1;
+	var _dashSpeed : Int = CharacterConstants.kDashSpeed;
+	var _dashDirection : IntPoint = new IntPoint(0, 0);
 	
 	var _moveStyleShifted : Bool = false;
 	
@@ -480,6 +490,70 @@ class AbilityBase extends FlxSprite
 	{
 		acceleration.y = _gravity;
 		_hoverDuration = 0;
+	}
+	
+	
+	
+	/**
+	 * Charges up a dash. Hold to charge, release to dash. To get direction,
+	 * either have AI decision-making change _dashDirection while charging,
+	 * or override this function, call super() and set _dashDirection from UI.
+	 */
+	function DashCharge() : Void
+	{
+		if (_dashLength < 0)
+		{
+			// Stop all previous momentum...
+			velocity.x = 0;
+			velocity.y = 0;
+			
+			// Set dash direction to default...
+			_dashDirection.X = 0;
+			_dashDirection.Y = 0;
+			
+			// And start charging up some dash.
+			_dashLength++;
+		}
+		else if (_dashLength < CharacterConstants.kDashLength)
+		{
+			acceleration.x = 0;
+			acceleration.y = 0;
+			_dashLength++;
+		}
+	}
+	
+	
+	
+	/**
+	 * Dash release. If a dash has been charged up, speeds off in that direction,
+	 * phasing through thin walls. Direction is determined by changing _dashDirection
+	 * by external functionality/AI decision-making or taking user input to _dashDirection
+	 * BEFORE the release is called. Changing _dashDirection WHILE this is called
+	 * causes a dash that can bend... which is maybe a whole other kettle of fish.
+	 */
+	function DashRelease() : Void
+	{
+		if (_dashLength > 0)
+		{
+			// Do the dash. Phase out!
+			velocity.x = _dashSpeed * _dashDirection.X;
+			velocity.y = _dashSpeed * _dashDirection.Y;
+			
+			_phasesThroughWalls = true;
+			_dashLength--;
+		}
+		else if (_dashLength == 0)
+		{
+			// Resume normal acceleration. MAYBE drop preceding velocity a bit?
+			acceleration.y = _gravity;
+			_phasesThroughWalls = false;
+			
+			// Touching the ground sets _dashLength to -1, meaning a new dash can begin.
+			if (isTouching(FlxObject.FLOOR))
+			{
+				_dashLength = -1;
+			}
+		}
 	}
 	
 	
