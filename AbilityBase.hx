@@ -31,6 +31,7 @@ enum AbilityDirectory
 	JUMP;
 	WALLJUMP;
 	HOVER;
+	DASH;
 }
 
 
@@ -51,8 +52,8 @@ class CharacterConstants
 	public inline static var kSkidDivisor : Int = 3;
 	public inline static var kClimbGrip : Int = 2;
 	
-	public inline static var kDashLength : Int = 20;
-	public inline static var kDashSpeed : Int = 50;
+	public inline static var kDashLength : Int = 10;
+	public inline static var kDashSpeed : Int = 500;
 }
 
 
@@ -72,7 +73,9 @@ class SpeedProfile
  */
 class AbilityBase extends FlxSprite
 {
-	public var _phasesThroughWalls : Bool = false;
+	public var PhasesThroughWalls : Bool = false;
+	
+	public var MoveDirection : IntPoint = new IntPoint(0, 0);
 	
 	var _facing : Facing = RIGHT;
 	
@@ -495,9 +498,8 @@ class AbilityBase extends FlxSprite
 	
 	
 	/**
-	 * Charges up a dash. Hold to charge, release to dash. To get direction,
-	 * either have AI decision-making change _dashDirection while charging,
-	 * or override this function, call super() and set _dashDirection from UI.
+	 * Charges up a dash. Hold to charge, release to dash. Direction
+	 * is set from MoveDirection..
 	 */
 	function DashCharge() : Void
 	{
@@ -516,20 +518,21 @@ class AbilityBase extends FlxSprite
 		}
 		else if (_dashLength < CharacterConstants.kDashLength)
 		{
-			acceleration.x = 0;
-			acceleration.y = 0;
+			_dashDirection = MoveDirection;
 			_dashLength++;
 		}
+		
+			
+		acceleration.x = 0;
+		acceleration.y = 0;
 	}
 	
 	
 	
 	/**
 	 * Dash release. If a dash has been charged up, speeds off in that direction,
-	 * phasing through thin walls. Direction is determined by changing _dashDirection
-	 * by external functionality/AI decision-making or taking user input to _dashDirection
-	 * BEFORE the release is called. Changing _dashDirection WHILE this is called
-	 * causes a dash that can bend... which is maybe a whole other kettle of fish.
+	 * phasing through thin walls. Direction is determined by _dashDirection, as
+	 * last set in DashCharge()
 	 */
 	function DashRelease() : Void
 	{
@@ -539,14 +542,35 @@ class AbilityBase extends FlxSprite
 			velocity.x = _dashSpeed * _dashDirection.X;
 			velocity.y = _dashSpeed * _dashDirection.Y;
 			
-			_phasesThroughWalls = true;
+			maxVelocity.set(CharacterConstants.kDashSpeed , CharacterConstants.kDashSpeed);
+			
+			PhasesThroughWalls = true;
 			_dashLength--;
 		}
 		else if (_dashLength == 0)
 		{
-			// Resume normal acceleration. MAYBE drop preceding velocity a bit?
-			acceleration.y = _gravity;
-			_phasesThroughWalls = false;
+			// If a dash was just finished (either dash direction isn't zero)
+			if ((_dashDirection.X != 0) || (_dashDirection.Y != 0))
+			{
+				// Set gravity, phase, and standard maxVelocity
+				acceleration.y = _gravity;
+				PhasesThroughWalls = false;
+				maxVelocity.set(_currentSpeed.max, _maxFall);
+				
+				// Reset momentum in effected axes
+				if (_dashDirection.X != 0)
+				{
+					// Stop momentum and set dash direction to 0
+					velocity.x = 0;
+					_dashDirection.X = 0;
+				}
+				if (_dashDirection.Y != 0)
+				{
+					// Stop momentum and set dash direction to 0
+					velocity.y = 0;
+					_dashDirection.Y = 0;
+				}
+			}
 			
 			// Touching the ground sets _dashLength to -1, meaning a new dash can begin.
 			if (isTouching(FlxObject.FLOOR))

@@ -36,28 +36,28 @@ class Genehack extends AbilityBase
 	{
 		super(X, Y);
 		
-		_phasesThroughWalls = false;
+		PhasesThroughWalls = false;
 		
 		
 		_controller = controls;
 		
 		
 		SetMove(WALK, GenehackConstants.kSpeed, 200);
-		SetMove(SHIFTCLIMB, (GenehackConstants.kSpeed), 200);
+		//SetMove(SHIFTCLIMB, (GenehackConstants.kSpeed), 200);
 	
 		
 		_actionOneActivate = WallJump;
 		_actionOneInactive = JumpRestore;
 		
-		_actionTwoActivate = MoveShiftOn;
-		_actionTwoInactive = MoveShiftOff;
+		_actionTwoActivate = HoverOn;
+		_actionTwoInactive = HoverOff;
 		
 		_actionOneButton = _controller.SetButton("space bar action", null, KeyStyle.HOLD);
 		_actionTwoButton = _controller.SetButton("shift action", null, KeyStyle.HOLD);
 		
 		_jumpStrength = GenehackConstants.kJump;
 	
-		_hoverStrength = 195;
+		_hoverStrength = 250;
 		
 		makeGraphic(30,30, FlxColor.SALMON);
 	}
@@ -112,7 +112,7 @@ class Genehack extends AbilityBase
 	 */
 	private function moveCheck() : Void
 	{
-		var moveDirection : IntPoint = _controller.GetDirection();
+		MoveDirection = _controller.GetDirection();
 		
 		// If the character has any movement style...
 		// ... this is purely just paranoia.
@@ -120,16 +120,19 @@ class Genehack extends AbilityBase
 		{
 			if (!_moveStyleShifted)
 			{
-				_lrMovement(moveDirection.X);
+				_lrMovement(MoveDirection.X);
 			}
 			// If shifted style, and a shifted move style exists,
 			// do eeeet.
 			else if (_lrMovementShifted != null)
 			{
-				_lrMovementShifted(moveDirection.X);
+				_lrMovementShifted(MoveDirection.X);
 			}
 		}
 	}
+	
+	
+	
 	
 	
 	/**

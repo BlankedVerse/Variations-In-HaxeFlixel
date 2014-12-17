@@ -55,9 +55,6 @@ class PlayState extends FlxState
 		
 		// Set the camera to follow the player
 		forEachOfType(Genehack, setFollow);
-		
-		// Separate all characters into ghostly and non-ghostly phases.
-		forEachOfType(AbilityBase, setPhase);
 	}
 	
 	
@@ -68,6 +65,9 @@ class PlayState extends FlxState
 	 */
 	override public function destroy():Void
 	{
+		_ghostPhase.destroy();
+		_standardPhase.destroy();
+		
 		super.destroy();
 	}
 
@@ -79,15 +79,33 @@ class PlayState extends FlxState
 	override public function update():Void
 	{
 		super.update();
-		
-		_level.collideWithLevel(_standardPhase, false);
-		_level.collideWithLevel(_ghostPhase, true);
+	
+		levelCollisions();
 	}
+	
+	
+	
+	public function levelCollisions() : Void
+	{
+		// Clear the phase list.
+		_standardPhase.clear();
+		_ghostPhase.clear();
+		
+		// Separate all characters into ghostly and non-ghostly phases.
+		forEachOfType(AbilityBase, setPhase);
+		
+		// Collide standard phase characters with all collision layers
+		_level.collideWithLevel(_standardPhase, false);
+		
+		// Collide ghosts phase characters with only solid walls
+		_level.collideWithLevel(_ghostPhase, true);		
+	}
+	
 	
 	
 	public function setPhase(character : AbilityBase) : Void
 	{
-		if (character._phasesThroughWalls)
+		if (character.PhasesThroughWalls)
 		{
 			_ghostPhase.add(character);
 		}
