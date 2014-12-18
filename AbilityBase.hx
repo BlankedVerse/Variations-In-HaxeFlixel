@@ -47,7 +47,7 @@ class CharacterConstants
 	public inline static var kJumpGhosting : Int = 6;
 	public inline static var kJumpHold : Int = 15;
 	
-	public inline static var kHoverDuration : Int = 20;
+	public inline static var kHoverDuration : Int = 30;
 	
 	public inline static var kSkidDivisor : Int = 3;
 	public inline static var kClimbGrip : Int = 2;
@@ -61,6 +61,22 @@ class SpeedProfile
 {
 	public var accel : Int = 0;
 	public var max : Int = 0;
+}
+
+
+class ActionSet
+{
+	public var Activate : Void -> Void = null;
+	public var Inactive : Void -> Void = null;
+	public var TriggerCheck : Void -> Bool = null;
+	
+	public function new(activationFunction : Void -> Void, inactiveFunction : Void -> Void,
+							?actionTrigger : Void -> Bool = null)
+	{
+		Activate = activationFunction;
+		Inactive = inactiveFunction;
+		TriggerCheck = actionTrigger;
+	}
 }
 
 
@@ -100,12 +116,13 @@ class AbilityBase extends FlxSprite
 	var _jumpPossible : Bool = true;
 	
 	var _hoverStrength : Int = 0;
-	var _hoverDuration : Int = 0;
+	var _hoverUpDuration : Int = 0;
 	
 	var _climbSpeed : Int = 0;
 	
 	var _dashLength : Int = -1;
 	var _dashSpeed : Int = CharacterConstants.kDashSpeed;
+	var _dashPossible : Bool = true;
 	var _dashDirection : IntPoint = new IntPoint(0, 0);
 	
 	var _moveStyleShifted : Bool = false;
@@ -117,11 +134,12 @@ class AbilityBase extends FlxSprite
 	
 	
 	// Action delegates
-	var _actionOneActivate : Void -> Void = null;
-	var _actionTwoActivate : Void -> Void = null;
+	var actionList : Array<ActionSet> = new Array();
+	//var _actionOneActivate : Void -> Void = null;
+	//var _actionTwoActivate : Void -> Void = null;
 	
-	var _actionOneInactive : Void -> Void = null;
-	var _actionTwoInactive : Void -> Void = null;
+	//var _actionOneInactive : Void -> Void = null;
+	//var _actionTwoInactive : Void -> Void = null;
 	
 
 	public function new(X:Float=0, Y:Float=0) 
@@ -453,7 +471,7 @@ class AbilityBase extends FlxSprite
 		{
 			acceleration.y = 0;
 			velocity.y = 0;
-			_hoverDuration = -1;
+			_hoverUpDuration = -1;
 		}
 		
 		// If capable of jumping...
@@ -463,20 +481,22 @@ class AbilityBase extends FlxSprite
 			// hover duration.
 			acceleration.y = CharacterConstants.kGravity/2;
 			velocity.y = -(_hoverStrength);
-			_hoverDuration = CharacterConstants.kHoverDuration;
+			_hoverUpDuration = CharacterConstants.kHoverDuration;
+			
+			_jumpGhost = -1;
 		}
 		// Otherwise, tick down hover counter to 0
-		else if (_hoverDuration > 0)
+		else if (_hoverUpDuration > 0)
 		{
-			_hoverDuration--;
+			_hoverUpDuration--;
 		}
 		// Or, if it is zero...
-		else if (_hoverDuration == 0)
+		else if (_hoverUpDuration == 0)
 		{
 			// Taper velocity off, set vertical acceleration to nil, and tick down
 			velocity.y = velocity.y/10;
 			acceleration.y = 0;
-			_hoverDuration--;
+			_hoverUpDuration--;
 		}
 		else
 		{
@@ -492,7 +512,7 @@ class AbilityBase extends FlxSprite
 	function HoverOff() : Void
 	{
 		acceleration.y = _gravity;
-		_hoverDuration = 0;
+		_hoverUpDuration = 0;
 	}
 	
 	
@@ -503,28 +523,35 @@ class AbilityBase extends FlxSprite
 	 */
 	function DashCharge() : Void
 	{
-		if (_dashLength < 0)
+		// If the character has touched the ground since the last dash
+		if (_dashPossible) 
 		{
-			// Stop all previous momentum...
-			velocity.x = 0;
-			velocity.y = 0;
+			// If dash has just started (-1 from touching ground)
+			if (_dashLength < 0)
+			{
+				// Remove previous momentum
+				velocity.x = 0;
+				velocity.y = 0;
+				
+				// Set dash direction to default...
+				_dashDirection.X = 0;
+				_dashDirection.Y = 0;
+				
+				// And start charging up some dash.
+				_dashLength++;
+			}
+			// If dash has started but hasn't fully charged...
+			else if (_dashLength < CharacterConstants.kDashLength)
+			{
+				// Charge it!
+				_dashLength++;
+			}
 			
-			// Set dash direction to default...
-			_dashDirection.X = 0;
-			_dashDirection.Y = 0;
+			acceleration.x = 0;
+			acceleration.y = 0;
 			
-			// And start charging up some dash.
-			_dashLength++;
-		}
-		else if (_dashLength < CharacterConstants.kDashLength)
-		{
 			_dashDirection = MoveDirection;
-			_dashLength++;
 		}
-		
-			
-		acceleration.x = 0;
-		acceleration.y = 0;
 	}
 	
 	
@@ -545,6 +572,8 @@ class AbilityBase extends FlxSprite
 			maxVelocity.set(CharacterConstants.kDashSpeed , CharacterConstants.kDashSpeed);
 			
 			PhasesThroughWalls = true;
+			_dashPossible = false;
+			
 			_dashLength--;
 		}
 		else if (_dashLength == 0)
@@ -576,6 +605,7 @@ class AbilityBase extends FlxSprite
 			if (isTouching(FlxObject.FLOOR))
 			{
 				_dashLength = -1;
+				_dashPossible = true;
 			}
 		}
 	}
