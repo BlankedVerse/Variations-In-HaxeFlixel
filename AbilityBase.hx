@@ -28,10 +28,12 @@ enum MoveStyleDirectory
 enum AbilityDirectory
 {
 	SHIFTMOVE;
+	SHIFTCLIMB;
 	JUMP;
 	WALLJUMP;
 	HOVER;
 	DASH;
+	SHIFTPHASE;
 }
 
 
@@ -41,18 +43,18 @@ class CharacterConstants
 	public inline static var kGravity : Int = 600;
 	
 	public inline static var kBaseDragX : Int = 300;
-	public inline static var kBaseDragY : Int = 20;
+	public inline static var kBaseDragY : Int = 600;
 	public inline static var kBaseFallSpeed : Int = 800;
 	
 	public inline static var kJumpGhosting : Int = 6;
-	public inline static var kJumpHold : Int = 15;
+	public inline static var kJumpHold : Int = 20;
 	
 	public inline static var kHoverDuration : Int = 30;
 	
-	public inline static var kSkidDivisor : Int = 3;
+	public inline static var kSkidDivisor : Int = 4;
 	public inline static var kClimbGrip : Int = 2;
 	
-	public inline static var kDashLength : Int = 10;
+	public inline static var kDashLength : Int = 15;
 	public inline static var kDashSpeed : Int = 500;
 }
 
@@ -109,11 +111,7 @@ class AbilityBase extends FlxSprite
 	var _jumpStrength : Int = 0;
 	var _jumpHold : Int = 0;
 	var _jumpGhost : Int = CharacterConstants.kJumpGhosting;
-	
-	// Special flag value. Extensions of this class can do special
-	// flags to prevent jumping in certain scenarios (i.e. controller
-	// jump button not released)
-	var _jumpPossible : Bool = true;
+	var _jumpReleased : Bool = true;
 	
 	var _hoverStrength : Int = 0;
 	var _hoverUpDuration : Int = 0;
@@ -122,7 +120,7 @@ class AbilityBase extends FlxSprite
 	
 	var _dashLength : Int = -1;
 	var _dashSpeed : Int = CharacterConstants.kDashSpeed;
-	var _dashPossible : Bool = true;
+	var _dashReady : Bool = true;
 	var _dashDirection : IntPoint = new IntPoint(0, 0);
 	
 	var _moveStyleShifted : Bool = false;
@@ -135,11 +133,6 @@ class AbilityBase extends FlxSprite
 	
 	// Action delegates
 	var actionList : Array<ActionSet> = new Array();
-	//var _actionOneActivate : Void -> Void = null;
-	//var _actionTwoActivate : Void -> Void = null;
-	
-	//var _actionOneInactive : Void -> Void = null;
-	//var _actionTwoInactive : Void -> Void = null;
 	
 
 	public function new(X:Float=0, Y:Float=0) 
@@ -254,19 +247,12 @@ class AbilityBase extends FlxSprite
 	{
 		if (isTouching(FlxObject.WALL))
 		{
-			/* maxVelocity on its own doesn't drop velocity fast enough if
-			you have a lot of momentum before grabbing to the wall,
-			so this expression just makes things a little bit stickier.
-			It's kinda hacky, but it feels better. Because sliding up
-			walls is weird. That being said, sliding up walls could be
-			nifty as an ability for another move type...*/
-			if ((velocity.y > _climbSpeed) || (velocity.y < -2 * _climbSpeed))
-			{
-				velocity.y /= CharacterConstants.kClimbGrip;
-			}
+			// Cling to the wall...
+			Cling();
+			
 			maxVelocity.y = _climbSpeed;
 			
-			// Touching wall in the direction you're moving...
+			// Touching wall in the direction you're moving, climb up it.
 			if ((isTouching(FlxObject.RIGHT)) && (Sign(direction) > 0))
 			{
 				acceleration.y = -(_climbSpeed);
@@ -364,22 +350,27 @@ class AbilityBase extends FlxSprite
 	{
 		// If the character is already jumping, allow them
 		// to gain more height as long as they hold the button.
-		if (_jumpHold > 0)
+		if ((_jumpHold > 0) && (acceleration.y != 0))
 		{
-			velocity.y = -_jumpStrength;
+			// Limit velocity.y so that it is at least _jumpStrength upwards.
+			if (velocity.y > -_jumpStrength)
+			{
+				velocity.y = -_jumpStrength;
+			}
+			
+			_jumpReleased = false;
 			_jumpHold--;
-			_jumpPossible = false;
 		}
 		
 		
-		if (_jumpPossible) 
+		if (_jumpReleased) 
 		{
 			// If the jumpGhosting forgiveness counter hasn't
 			// hit 0 yet, then the character can start a jump.
 			if (_jumpGhost > 0)
 			{
-				velocity.y = -_jumpStrength;
-				_jumpGhost = 0;
+				velocity.y -= _jumpStrength;
+				_jumpGhost = -1;
 				_jumpHold = CharacterConstants.kJumpHold;
 			}
 		}
@@ -392,47 +383,30 @@ class AbilityBase extends FlxSprite
 	 * of touching ground, or if they're hugging a wall they jump!
 	 */
 	function WallJump() : Void
-	{
-		// If the character is already jumping, allow them
-		// to gain more height as long as they hold the button.
-		if (_jumpHold > 0)
-		{
-			velocity.y = -_jumpStrength;
-			_jumpHold--;
-			_jumpPossible = false;
-		}
-		
-		
-		if (_jumpPossible) 
+	{		
+		if (_jumpReleased) 
 		{
 			// If the character is touching a wall but not the floor...
 			if ((isTouching(FlxObject.WALL)) && (!isTouching(FlxObject.FLOOR)))
 			{
 				// Do a jump...
-				velocity.y = -_jumpStrength;
-				_jumpGhost = 0;
+				velocity.y -= _jumpStrength;
+				_jumpGhost = -1;
 				_jumpHold = CharacterConstants.kJumpHold;
 				
 				// .. and add a horizontal element in the opposite direction.
 				if (isTouching(FlxObject.RIGHT))
 				{
-					velocity.x = -_jumpStrength;
+					velocity.x -= _jumpStrength;
 				}
 				else if (isTouching(FlxObject.LEFT))
 				{
-					velocity.x = _jumpStrength;
+					velocity.x += _jumpStrength;
 				}
 				
 			}
-			// Otherwise, standard jump check. If the jumpGhosting forgiveness counter hasn't
-			// hit 0 yet, then the character can start a jump.
-			else if (_jumpGhost > 0)
-			{
-				velocity.y = -_jumpStrength;
-				_jumpGhost = 0;
-				_jumpHold = CharacterConstants.kJumpHold;
-			}
 		}
+		Jump();
 	}
 	
 	
@@ -449,7 +423,7 @@ class AbilityBase extends FlxSprite
 			_jumpHold = 0;
 		}
 		
-		_jumpPossible = true;
+		_jumpReleased = true;
 		
 		if (_jumpHold > 0)
 		{
@@ -479,22 +453,32 @@ class AbilityBase extends FlxSprite
 		{
 			// Drop to half gravity, give a slight upwards momentum, and set
 			// hover duration.
-			acceleration.y = CharacterConstants.kGravity/2;
-			velocity.y = -(_hoverStrength);
-			_hoverUpDuration = CharacterConstants.kHoverDuration;
+			acceleration.y = CharacterConstants.kGravity / 2;
+			
+			if (isTouching(FlxObject.FLOOR))
+			{
+				velocity.y = -(_hoverStrength);
+				_hoverUpDuration = CharacterConstants.kHoverDuration;
+			}
+			else
+			{
+				_hoverUpDuration = 0;
+				velocity.y = 0;
+			}
 			
 			_jumpGhost = -1;
 		}
 		// Otherwise, tick down hover counter to 0
 		else if (_hoverUpDuration > 0)
 		{
+			_jumpHold = 0;
 			_hoverUpDuration--;
 		}
 		// Or, if it is zero...
 		else if (_hoverUpDuration == 0)
 		{
 			// Taper velocity off, set vertical acceleration to nil, and tick down
-			velocity.y = velocity.y/10;
+			velocity.y = velocity.y/1.5;
 			acceleration.y = 0;
 			_hoverUpDuration--;
 		}
@@ -511,8 +495,11 @@ class AbilityBase extends FlxSprite
 	 */
 	function HoverOff() : Void
 	{
-		acceleration.y = _gravity;
-		_hoverUpDuration = 0;
+		if (_hoverUpDuration != 0) 
+		{
+			acceleration.y = _gravity;
+			_hoverUpDuration = 0;
+		}
 	}
 	
 	
@@ -524,8 +511,9 @@ class AbilityBase extends FlxSprite
 	function DashCharge() : Void
 	{
 		// If the character has touched the ground since the last dash
-		if (_dashPossible) 
+		if (_dashReady) 
 		{
+			_jumpHold = 0;
 			// If dash has just started (-1 from touching ground)
 			if (_dashLength < 0)
 			{
@@ -552,6 +540,10 @@ class AbilityBase extends FlxSprite
 			
 			_dashDirection = MoveDirection;
 		}
+		else
+		{
+			DashRelease();
+		}
 	}
 	
 	
@@ -569,12 +561,19 @@ class AbilityBase extends FlxSprite
 			velocity.x = _dashSpeed * _dashDirection.X;
 			velocity.y = _dashSpeed * _dashDirection.Y;
 			
-			maxVelocity.set(CharacterConstants.kDashSpeed , CharacterConstants.kDashSpeed);
+			// If dashing in any direction, phase through walls
+			if ((_dashDirection.X != 0) || (_dashDirection.Y != 0)) 
+			{
+				PhasesThroughWalls = true;
+				maxVelocity.set(CharacterConstants.kDashSpeed , CharacterConstants.kDashSpeed);
+				_dashLength--;
+			}
+			else
+			{
+				_dashLength = 0;
+			}
 			
-			PhasesThroughWalls = true;
-			_dashPossible = false;
-			
-			_dashLength--;
+			_dashReady = false;
 		}
 		else if (_dashLength == 0)
 		{
@@ -605,11 +604,24 @@ class AbilityBase extends FlxSprite
 			if (isTouching(FlxObject.FLOOR))
 			{
 				_dashLength = -1;
-				_dashPossible = true;
+				_dashReady = true;
 			}
 		}
 	}
 	
+	
+	
+	function PhaseShifted() : Void
+	{
+		PhasesThroughWalls = true;
+	}
+	
+	
+	
+	function PhaseUnshifted() : Void
+	{
+		PhasesThroughWalls = false;
+	}
 	
 	
 	// Common helper functions
@@ -645,6 +657,34 @@ class AbilityBase extends FlxSprite
 	}
 	
 	
+	
+	public function Cling() : Void
+	{
+		var clingBoundary = Std.int(_baseSpeed.accel / 2);
+		
+		if (isTouching(FlxObject.WALL))
+		{
+			/* maxVelocity on its own doesn't drop velocity fast enough if
+			you have a lot of momentum before grabbing to the wall,
+			so this expression just makes things a little bit stickier.
+			It's kinda hacky, but it feels better. Because sliding up
+			walls is weird. That being said, sliding up walls could be
+			nifty as an ability for another move type...*/
+			if ((velocity.y > clingBoundary) || (velocity.y < -2 * clingBoundary))
+			{
+				velocity.y /= CharacterConstants.kClimbGrip;
+			}
+		}
+	}
+	
+	
+	
+	// Just a quicky function for permanent ability checks. Things that should
+	// be triggered always.
+	public function Permanent() : Bool
+	{
+		return true;
+	}
 	
 	
 	// Math helper functions

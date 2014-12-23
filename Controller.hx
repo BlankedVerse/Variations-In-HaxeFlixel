@@ -91,7 +91,7 @@ class ActionButton
 				_returnValue = _active;
 			case HOLD:
 				_returnValue = FlxG.keys.anyPressed(Keys);
-				_active = _returnValue;
+				//_active = _returnValue;
 		}
 		
 		return _returnValue;
