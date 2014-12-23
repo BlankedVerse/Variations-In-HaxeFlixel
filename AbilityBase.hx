@@ -20,20 +20,19 @@ enum MoveStyleDirectory
 	WALK;
 	CLIMB;
 	RUN;
-	SHIFTCLIMB;
 }
 
 
 
 enum AbilityDirectory
 {
-	SHIFTMOVE;
-	SHIFTCLIMB;
+	RUN;
+	CLIMB;
 	JUMP;
 	WALLJUMP;
 	HOVER;
 	DASH;
-	SHIFTPHASE;
+	PHASE;
 }
 
 
@@ -43,7 +42,7 @@ class CharacterConstants
 	public inline static var kGravity : Int = 600;
 	
 	public inline static var kBaseDragX : Int = 300;
-	public inline static var kBaseDragY : Int = 600;
+	public inline static var kBaseDragY : Int = 1200;
 	public inline static var kBaseFallSpeed : Int = 800;
 	
 	public inline static var kJumpGhosting : Int = 6;
@@ -51,7 +50,7 @@ class CharacterConstants
 	
 	public inline static var kHoverDuration : Int = 30;
 	
-	public inline static var kSkidDivisor : Int = 4;
+	public inline static var kSkidMultiplier : Float = 0.9;
 	public inline static var kClimbGrip : Int = 2;
 	
 	public inline static var kDashLength : Int = 15;
@@ -94,8 +93,6 @@ class AbilityBase extends FlxSprite
 	public var PhasesThroughWalls : Bool = false;
 	
 	public var MoveDirection : IntPoint = new IntPoint(0, 0);
-	
-	var _facing : Facing = RIGHT;
 	
 	var _gravity : Int = CharacterConstants.kGravity;
 	
@@ -184,6 +181,29 @@ class AbilityBase extends FlxSprite
 				
 				_climbSpeed = Std.int(baseSpeed / 2);
 				
+			case RUN:
+				SetShiftedMove(moveType, baseSpeed, maxSpeed);
+		}
+	}
+	
+	
+
+	/**
+	 * Set shifted movement info. walk, run, etc. Basic movement
+	 * should always be put to walk, only use run for a secondary faster movement
+	 * style. Climb substitutes for walk, shiftclimb is secondary movement
+	 * version of climb.
+	 * @param	moveType	The move style, from the MoveStyle enum
+	 * @param	accel		Acceleration of this move declaration
+	 * @param	maxSpeed	Maximum speed for this move declaration
+	 */
+	function SetShiftedMove(moveType : MoveStyleDirectory, baseSpeed : Int, maxSpeed : Int = 0) : Void
+	{		
+		switch(moveType)
+		{
+			case WALK:
+				// Nothing happens!
+			
 			// Set run as the shifted movestyle, with speed and max
 			case RUN:
 				_lrMovementShifted = Run;
@@ -193,7 +213,7 @@ class AbilityBase extends FlxSprite
 				_shiftedSpeed.max = maxSpeed;
 				
 			// Set climb speed and max as a shifted move type
-			case SHIFTCLIMB:
+			case CLIMB:
 				_lrMovementShifted = WalkClimb;
 			
 				_shiftedSpeed = new SpeedProfile();
@@ -201,6 +221,50 @@ class AbilityBase extends FlxSprite
 				_shiftedSpeed.max = maxSpeed;
 				
 				_climbSpeed = Std.int(baseSpeed / 2);
+		}
+	}
+	
+	
+	
+	/**
+	 * Add an ability to the character's list. This doesn't, presently, check to make
+	 * sure that abilities aren't tied to the same trigger, so watch out!
+	 * @param	newSkill		The AbilityDirectory name of the new skill to add
+	 * @param	triggerCheck	When the ability should be triggered. Use Permanent
+	 * 							to make it always triggered.
+	 * @param	baseStrength	Jump/hover strength, acceleration for movestyles, etc.
+	 * @param	maxStrength		Move speed cap, etc.
+	 */
+	public function AddAbility(newSkill : AbilityDirectory, 
+								triggerCheck : Void -> Bool,
+								?baseStrength : Int = 0,
+								?maxStrength : Int = 0) : Void
+	{
+		switch (newSkill)
+		{
+			case RUN:
+				SetShiftedMove(RUN, baseStrength, maxStrength);
+				actionList.push(new ActionSet(MoveShiftOn, MoveShiftOff, triggerCheck));
+			case CLIMB:
+				SetShiftedMove(CLIMB, baseStrength, maxStrength);
+				actionList.push(new ActionSet(MoveShiftOn, MoveShiftOff, triggerCheck));
+				
+			case JUMP:
+				_jumpStrength = baseStrength;
+				actionList.push(new ActionSet(Jump, JumpRestore, triggerCheck));
+			case WALLJUMP:
+				_jumpStrength = baseStrength;
+				actionList.push(new ActionSet(WallJump, JumpRestore, triggerCheck));
+				
+				// Extra trait: Give walljumpers automatic Cling.
+				actionList.push(new ActionSet(null, Cling, null));
+			case HOVER:
+				_hoverStrength = baseStrength;
+				actionList.push(new ActionSet(HoverOn, HoverOff, triggerCheck));
+			case DASH:
+				actionList.push(new ActionSet(DashCharge, DashRelease, triggerCheck));
+			case PHASE:
+				actionList.push(new ActionSet(PhaseShifted, PhaseUnshifted, triggerCheck));
 		}
 	}
 	
@@ -454,17 +518,9 @@ class AbilityBase extends FlxSprite
 			// Drop to half gravity, give a slight upwards momentum, and set
 			// hover duration.
 			acceleration.y = CharacterConstants.kGravity / 2;
+			velocity.y = -(_hoverStrength);
+			_hoverUpDuration = CharacterConstants.kHoverDuration;
 			
-			if (isTouching(FlxObject.FLOOR))
-			{
-				velocity.y = -(_hoverStrength);
-				_hoverUpDuration = CharacterConstants.kHoverDuration;
-			}
-			else
-			{
-				_hoverUpDuration = 0;
-				velocity.y = 0;
-			}
 			
 			_jumpGhost = -1;
 		}
@@ -495,6 +551,12 @@ class AbilityBase extends FlxSprite
 	 */
 	function HoverOff() : Void
 	{
+		// If touching the floor, reset jumpDelay counter.
+		if (isTouching(FlxObject.FLOOR))
+		{
+			_jumpGhost = CharacterConstants.kJumpGhosting;
+		}
+		
 		if (_hoverUpDuration != 0) 
 		{
 			acceleration.y = _gravity;
@@ -629,51 +691,50 @@ class AbilityBase extends FlxSprite
 	 * Skid function. Used when changing directions on the ground,
 	 * simply to prevent retyping it all the time. Override to add
 	 * special animations?
-	 * @param	directionSign	1 or -1, indicating the direction
+	 * @param	accelSign		1 or -1, indicating the direction
 	 * 							of movement.
 	 */
-	private function skid(directionSign : Int) : Void
+	private function skid(accelSign : Int) : Void
 	{
-		var newDirection : Facing = _facing;
+		var velocitySign : Int = 0;
 		
-		if (directionSign > 0)
+		if (velocity.x > 0)
 		{
-			newDirection = RIGHT;
+			velocitySign = 1;
 		}
-		else if (directionSign < 0)
+		else if (velocity.x < 0)
 		{
-			newDirection = LEFT;
+			velocitySign = -1;
 		}
 		
-		if (_facing != newDirection)
-		{
-			_facing = newDirection;
-		
+		if (velocitySign != accelSign)
+		{		
 			if (this.isTouching(FlxObject.FLOOR))
 			{
-				velocity.x /= CharacterConstants.kSkidDivisor;
+				velocity.x *= CharacterConstants.kSkidMultiplier;
 			}
 		}	
 	}
 	
 	
-	
+	/**
+	 * Cling(). Allows the owner to cling to walls if they touch them, reducing
+	 * their fall speed. 
+	 */
 	public function Cling() : Void
 	{
 		var clingBoundary = Std.int(_baseSpeed.accel / 2);
 		
 		if (isTouching(FlxObject.WALL))
 		{
-			/* maxVelocity on its own doesn't drop velocity fast enough if
-			you have a lot of momentum before grabbing to the wall,
-			so this expression just makes things a little bit stickier.
-			It's kinda hacky, but it feels better. Because sliding up
-			walls is weird. That being said, sliding up walls could be
-			nifty as an ability for another move type...*/
 			if ((velocity.y > clingBoundary) || (velocity.y < -2 * clingBoundary))
 			{
 				velocity.y /= CharacterConstants.kClimbGrip;
 			}
+			
+			// Set dashReady to be true, so that if you have cling and grab a wall,
+			// you can dash again. :)
+			_dashReady = true;
 		}
 	}
 	
@@ -712,20 +773,71 @@ class AbilityBase extends FlxSprite
 	
 	
 	
+	/**
+	 * actionCheck(). See what abilities are being triggered,
+	 * and activate/inactivate them as necessary.
+	 */
+	private function actionCheck() : Void
+	{
+		// Check if there is an action one...
+		for (action in actionList)
+		{
+			// If so, check for controller value and activate
+			if ((action.Activate != null) && (action.TriggerCheck()))
+			{
+				action.Activate();
+			}
+			/* If not, check if there's an inactive function
+			for that ability. */
+			else if (action.Inactive != null)
+			{
+				action.Inactive();
+			}
+		}
+	}
+	
+	
+	
+	/**
+	 * moveCheck(). Check for movement data, and activate
+	 * the appropriate movement style.
+	 */
+	private function moveCheck() : Void
+	{
+		// If the character has any movement style...
+		// ... this is purely just paranoia.
+		if (_lrMovement != null)
+		{
+			if (!_moveStyleShifted)
+			{
+				_lrMovement(MoveDirection.X);
+			}
+			// If shifted style, and a shifted move style exists,
+			// do eeeet.
+			else if (_lrMovementShifted != null)
+			{
+				_lrMovementShifted(MoveDirection.X);
+			}
+		}
+	}
+	
 	
 	
 	/**
 	 * Update the character.
 	 */
 	override public function update() : Void
-	{		
-		super.update();
-		
+	{
 		// Decrement the jumpDelay counter if it isn't already 0.
 		if (_jumpGhost > 0)
 		{
 			_jumpGhost -= 1;
 		}
+		
+		
+		moveCheck();
+		actionCheck();
+		super.update();
 	}
 	
 	

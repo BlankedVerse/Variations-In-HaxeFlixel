@@ -34,9 +34,6 @@ class Genehack extends AbilityBase
 {
 	var _controller : Controller = null;
 	
-	var _actionOneButton : ActionButton = null;
-	var _actionTwoButton : ActionButton = null;
-	
 
 	public function new(X:Float=0, Y:Float=0, controls:Controller) 
 	{
@@ -54,8 +51,8 @@ class Genehack extends AbilityBase
 		var _actionOneButton = _controller.SetButton("space bar action", null, KeyStyle.HOLD);
 		var _actionTwoButton = _controller.SetButton("shift action", null, KeyStyle.HOLD);
 		
-		AddAbility(WALLJUMP, _actionOneButton.GetKeyInput);
-		AddAbility(HOVER, _actionTwoButton.GetKeyInput);
+		AddAbility(HOVER, _actionOneButton.GetKeyInput);
+		AddAbility(DASH, _actionTwoButton.GetKeyInput);
 		
 		makeGraphic(30,30, FlxColor.SALMON);
 	}
@@ -69,89 +66,51 @@ class Genehack extends AbilityBase
 	 * @param	triggerCheck	When the ability should be triggered. Use Permanent
 	 * 							to make it always triggered.
 	 */
-	public function AddAbility(newSkill : AbilityDirectory, 
-								triggerCheck : Void -> Bool) : Void
+	override public function AddAbility(newSkill : AbilityDirectory, 
+								triggerCheck : Void -> Bool,
+								?baseStrength : Int = 0,
+								?maxStrength : Int = 0) : Void
 	{
-		switch (newSkill)
+		// If a specific baseStrength or maxStrength are entered...
+		if ((baseStrength != 0) || (maxStrength != 0))
 		{
-			case SHIFTMOVE:
-				SetMove(RUN, GenehackConstants.kRunSpeed, GenehackConstants.kRunMax);
-				actionList.push(new ActionSet(MoveShiftOn, MoveShiftOff, triggerCheck));
-			case SHIFTCLIMB:
-				SetMove(SHIFTCLIMB, GenehackConstants.kSpeed, GenehackConstants.kMaxSpeed);
-				actionList.push(new ActionSet(MoveShiftOn, MoveShiftOff, triggerCheck));
-			case JUMP:
-				_jumpStrength = GenehackConstants.kJump;
-				actionList.push(new ActionSet(Jump, JumpRestore, triggerCheck));
-			case WALLJUMP:
-				_jumpStrength = GenehackConstants.kJump;
-				actionList.push(new ActionSet(WallJump, JumpRestore, triggerCheck));
-				
-				// Extra trait: Give walljumpers automatic Cling.
-				actionList.push(new ActionSet(null, Cling, null));
-			case HOVER:
-				_hoverStrength = GenehackConstants.kHoverUp;
-				actionList.push(new ActionSet(HoverOn, HoverOff, triggerCheck));
-			case DASH:
-				actionList.push(new ActionSet(DashCharge, DashRelease, triggerCheck));
-			case SHIFTPHASE:
-				actionList.push(new ActionSet(PhaseShifted, PhaseUnshifted, triggerCheck));
+			// Use them.
+			super.AddAbility(newSkill, triggerCheck, baseStrength, maxStrength);
 		}
-	}
-	
-	
-	
-	/**
-	 * actionCheck(). See if the controller is registering
-	 * input, and activate/deactivate the appropriate abilities.
-	 */
-	private function actionCheck() : Void
-	{
-		// Check if there is an action one...
-		for (action in actionList)
+		// Otherwise, use defaults from the constants list.
+		else
 		{
-			// If so, check for controller value and activate
-			if ((action.Activate != null) && (action.TriggerCheck()))
+			switch (newSkill)
 			{
-				action.Activate();
-			}
-			/* If not, check if there's an inactive function
-			for that ability. */
-			else if (action.Inactive != null)
-			{
-				action.Inactive();
+				case RUN:
+					super.AddAbility(RUN, triggerCheck, 
+							GenehackConstants.kRunSpeed, GenehackConstants.kRunMax);
+				case CLIMB:
+					super.AddAbility(CLIMB, triggerCheck, 
+							GenehackConstants.kSpeed, GenehackConstants.kMaxSpeed);
+					
+				case JUMP:
+					super.AddAbility(JUMP, triggerCheck, GenehackConstants.kJump);
+				case WALLJUMP:
+					super.AddAbility(WALLJUMP, triggerCheck, GenehackConstants.kJump);
+					
+				case HOVER:
+					super.AddAbility(HOVER, triggerCheck, GenehackConstants.kHoverUp);
+					
+				// For abilities that don't require strengths, just call the super.
+				default:
+					super.AddAbility(newSkill, triggerCheck);
 			}
 		}
 	}
 	
 	
 	
-	/**
-	 * moveCheck(). Check for movement data from the controller, and
-	 * activate the appropriate movement style.
-	 */
-	private function moveCheck() : Void
+	override public function moveCheck() : Void
 	{
 		MoveDirection = _controller.GetDirection();
-		
-		// If the character has any movement style...
-		// ... this is purely just paranoia.
-		if (_lrMovement != null)
-		{
-			if (!_moveStyleShifted)
-			{
-				_lrMovement(MoveDirection.X);
-			}
-			// If shifted style, and a shifted move style exists,
-			// do eeeet.
-			else if (_lrMovementShifted != null)
-			{
-				_lrMovementShifted(MoveDirection.X);
-			}
-		}
+		super.moveCheck();
 	}
-	
-	
 	
 	
 	
@@ -160,8 +119,6 @@ class Genehack extends AbilityBase
 	 */
 	override public function update() : Void
 	{
-		moveCheck();
-		actionCheck();
 		super.update();
 	}
 	
