@@ -6,14 +6,6 @@ import flixel.FlxObject;
 import Controller.IntPoint;
 
 
-enum Facing
-{
-	LEFT;
-	RIGHT;
-}
-
-
-
 enum MoveStyleDirectory
 {
 	// Movement abilities
@@ -129,7 +121,7 @@ class AbilityBase extends FlxSprite
 	
 	
 	// Action delegates
-	var actionList : Array<ActionSet> = new Array();
+	var _actionList : Array<ActionSet> = new Array();
 	
 
 	public function new(X:Float=0, Y:Float=0) 
@@ -244,28 +236,39 @@ class AbilityBase extends FlxSprite
 		{
 			case RUN:
 				SetShiftedMove(RUN, baseStrength, maxStrength);
-				actionList.push(new ActionSet(MoveShiftOn, MoveShiftOff, triggerCheck));
+				_actionList.push(new ActionSet(MoveShiftOn, MoveShiftOff, triggerCheck));
 			case CLIMB:
 				SetShiftedMove(CLIMB, baseStrength, maxStrength);
-				actionList.push(new ActionSet(MoveShiftOn, MoveShiftOff, triggerCheck));
+				_actionList.push(new ActionSet(MoveShiftOn, MoveShiftOff, triggerCheck));
 				
 			case JUMP:
 				_jumpStrength = baseStrength;
-				actionList.push(new ActionSet(Jump, JumpRestore, triggerCheck));
+				_actionList.push(new ActionSet(Jump, JumpRestore, triggerCheck));
 			case WALLJUMP:
 				_jumpStrength = baseStrength;
-				actionList.push(new ActionSet(WallJump, JumpRestore, triggerCheck));
+				_actionList.push(new ActionSet(WallJump, JumpRestore, triggerCheck));
 				
 				// Extra trait: Give walljumpers automatic Cling.
-				actionList.push(new ActionSet(null, Cling, null));
+				_actionList.push(new ActionSet(null, Cling, null));
 			case HOVER:
 				_hoverStrength = baseStrength;
-				actionList.push(new ActionSet(HoverOn, HoverOff, triggerCheck));
+				_actionList.push(new ActionSet(HoverOn, HoverOff, triggerCheck));
 			case DASH:
-				actionList.push(new ActionSet(DashCharge, DashRelease, triggerCheck));
+				_actionList.push(new ActionSet(DashCharge, DashRelease, triggerCheck));
 			case PHASE:
-				actionList.push(new ActionSet(PhaseShifted, PhaseUnshifted, triggerCheck));
+				_actionList.push(new ActionSet(PhaseShifted, PhaseUnshifted, triggerCheck));
 		}
+	}
+	
+	
+	
+	/**
+	 * ClearAbilities(). Clears the action list. Call to make sure that all abilities are
+	 * cleared from the character's list.
+	 */
+	public function ClearAbilities() : Void
+	{
+		_actionList = new Array<ActionSet> ();
 	}
 	
 	
@@ -780,7 +783,7 @@ class AbilityBase extends FlxSprite
 	private function actionCheck() : Void
 	{
 		// Check if there is an action one...
-		for (action in actionList)
+		for (action in _actionList)
 		{
 			// If so, check for controller value and activate
 			if ((action.Activate != null) && (action.TriggerCheck()))

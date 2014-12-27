@@ -9,9 +9,11 @@ import flixel.util.FlxColor;
 import AbilityBase;
 import Controller;
 
+import WorldWideKeys;
 
 
-class GenehackConstants
+
+class PlayerConstants
 {
 	public inline static var kSpeed : Int = 150;
 	public inline static var kMaxSpeed : Int = 200;
@@ -30,9 +32,11 @@ class GenehackConstants
  * ...
  * @author ...
  */
-class Genehack extends AbilityBase
+class PlayerCharacter extends AbilityBase
 {
 	var _controller : Controller = null;
+	
+	//var _skillScreen : abilitySelectMenu = new abilitySelectMenu();
 	
 
 	public function new(X:Float=0, Y:Float=0, controls:Controller) 
@@ -45,11 +49,11 @@ class Genehack extends AbilityBase
 		_controller = controls;
 		
 		
-		//SetMove(WALK, GenehackConstants.kSpeed, GenehackConstants.kMaxSpeed);
-		SetMove(CLIMB, GenehackConstants.kSpeed, GenehackConstants.kMaxSpeed);
+		//SetMove(WALK, PlayerConstants.kSpeed, PlayerConstants.kMaxSpeed);
+		SetMove(CLIMB, PlayerConstants.kSpeed, PlayerConstants.kMaxSpeed);
 		
-		var _actionOneButton = _controller.SetButton("space bar action", null, KeyStyle.HOLD);
-		var _actionTwoButton = _controller.SetButton("shift action", null, KeyStyle.HOLD);
+		var _actionOneButton = _controller.SetButton(WorldWideKeys.ActionOne, null, KeyStyle.HOLD);
+		var _actionTwoButton = _controller.SetButton(WorldWideKeys.ActionTwo, null, KeyStyle.HOLD);
 		
 		AddAbility(HOVER, _actionOneButton.GetKeyInput);
 		AddAbility(DASH, _actionTwoButton.GetKeyInput);
@@ -84,18 +88,18 @@ class Genehack extends AbilityBase
 			{
 				case RUN:
 					super.AddAbility(RUN, triggerCheck, 
-							GenehackConstants.kRunSpeed, GenehackConstants.kRunMax);
+							PlayerConstants.kRunSpeed, PlayerConstants.kRunMax);
 				case CLIMB:
 					super.AddAbility(CLIMB, triggerCheck, 
-							GenehackConstants.kSpeed, GenehackConstants.kMaxSpeed);
+							PlayerConstants.kSpeed, PlayerConstants.kMaxSpeed);
 					
 				case JUMP:
-					super.AddAbility(JUMP, triggerCheck, GenehackConstants.kJump);
+					super.AddAbility(JUMP, triggerCheck, PlayerConstants.kJump);
 				case WALLJUMP:
-					super.AddAbility(WALLJUMP, triggerCheck, GenehackConstants.kJump);
+					super.AddAbility(WALLJUMP, triggerCheck, PlayerConstants.kJump);
 					
 				case HOVER:
-					super.AddAbility(HOVER, triggerCheck, GenehackConstants.kHoverUp);
+					super.AddAbility(HOVER, triggerCheck, PlayerConstants.kHoverUp);
 					
 				// For abilities that don't require strengths, just call the super.
 				default:
@@ -119,7 +123,16 @@ class Genehack extends AbilityBase
 	 */
 	override public function update() : Void
 	{
-		super.update();
+		// If in ability-swapping mode, only update that and not the player character.
+		//if (swapping out abilities)
+		//{
+			//_skillScreen.update();
+		//}
+		// Otherwise, perform a standard update.
+		//else
+		//{
+			super.update();
+		//}
 	}
 	
 	

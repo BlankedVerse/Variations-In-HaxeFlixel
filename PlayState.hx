@@ -11,11 +11,14 @@ import flixel.util.FlxMath;
 import Controller;
 import AbilityBase;
 
+import WorldWideKeys;
 
 class ControlDefaults
 {
-	public inline static var kSpaceBar : String = "SPACE";
-	public inline static var kShift : String = "SHIFT";
+	public inline static var kActionOne : String = "SPACE";
+	public inline static var kActionTwo : String = "SHIFT";
+	
+	public inline static var kReincarnate : String = "ESCAPE";
 }
 
 
@@ -32,17 +35,29 @@ class PlayState extends FlxState
 	var _standardPhase : FlxGroup = new FlxGroup();
 	var _ghostPhase : FlxGroup = new FlxGroup();
 	
+	
+	// Control variables
+	var _actionOne = new Array<String>();
+	var _actionTwo = new Array<String>();
+	var _reincarnate = new Array<String>();
+	
 	/**
 	 * Function that is called up when to state is created to set it up. 
 	 */
 	override public function create():Void
 	{
+		_actionOne.push(ControlDefaults.kActionOne);
+		_actionTwo.push(ControlDefaults.kActionTwo);
+		_reincarnate.push(ControlDefaults.kReincarnate);
+		
 		// Set controls.
-		gameController.SetButton("space bar action", ["SPACE"], KeyStyle.PRESS);
-		gameController.SetButton("shift action", ["SHIFT"], KeyStyle.HOLD);
+		gameController.SetButton(WorldWideKeys.ActionOne, _actionOne, KeyStyle.PRESS);
+		gameController.SetButton(WorldWideKeys.ActionTwo, _actionTwo, KeyStyle.HOLD);
+		
+		gameController.SetButton(WorldWideKeys.Reincarnate, _reincarnate, KeyStyle.PRESS);
 		
 		// Load map, calling in the controller so it can be tied to the player character.
-		_level = new TiledLevel ("assets/data/VariationDebugMap.tmx", gameController);
+		_level = new TiledLevel (WorldWideKeys.TestingLevelPath, gameController);
 		
 		// Add tiles into play state
 		add(_level.backgroundTiles);
@@ -54,7 +69,7 @@ class PlayState extends FlxState
 		//super.create();
 		
 		// Set the camera to follow the player
-		forEachOfType(Genehack, setFollow);
+		forEachOfType(PlayerCharacter, setFollow);
 	}
 	
 	
@@ -116,7 +131,7 @@ class PlayState extends FlxState
 	}
 	
 	
-	public function setFollow(player : Genehack) : Void
+	public function setFollow(player : PlayerCharacter) : Void
 	{
 		FlxG.camera.follow(player);
 	}

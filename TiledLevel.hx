@@ -14,7 +14,7 @@ import flixel.addons.editors.tiled.TiledObject;
 import flixel.addons.editors.tiled.TiledObjectGroup;
 import flixel.addons.editors.tiled.TiledTileSet;
 
-import Genehack;
+import PlayerCharacter;
 import Controller;
 
 /**
@@ -121,7 +121,7 @@ class TiledLevel extends TiledMap
 		var x:Int = o.x;
 		var y:Int = o.y;
 		
-		var player : Genehack;
+		var player : PlayerCharacter;
 		
 		// objects in tiled are aligned bottom-left (top-left in flixel)
 		if (o.gid != -1)
@@ -133,7 +133,7 @@ class TiledLevel extends TiledMap
 			// Switch the different types of critters here.
 			case "genehack":
 				// Define and set the critter.
-				player = new Genehack(x, y, playerOneControls);
+				player = new PlayerCharacter(x, y, playerOneControls);
 				state.add(player);
 		}
 	}
