@@ -1,5 +1,6 @@
 package ;
 
+import flixel.FlxG;
 import flixel.FlxSprite;
 import flixel.FlxObject;
 
@@ -50,10 +51,18 @@ class CharacterConstants
 }
 
 
-class SpeedProfile
+class MoveProfile
 {
+	public var moveType : MoveStyleDirectory = WALK;
 	public var accel : Int = 0;
 	public var max : Int = 0;
+	
+	public function new(movementType : MoveStyleDirectory, acceleration : Int, maxSpeed : Int)
+	{
+		moveType = movementType;
+		accel = acceleration;
+		max = maxSpeed;
+	}
 }
 
 
@@ -90,10 +99,10 @@ class AbilityBase extends FlxSprite
 	
 	
 	// Movement variables and delegates
-	var _currentSpeed : SpeedProfile = new SpeedProfile();
+	var _currentSpeed : MoveProfile = new MoveProfile(WALK, 0, 0);
 	
-	var _baseSpeed : SpeedProfile;
-	var _shiftedSpeed : SpeedProfile;
+	var _baseSpeed : MoveProfile;
+	var _shiftedSpeed : MoveProfile;
 	
 	var _maxFall : Int = CharacterConstants.kBaseFallSpeed;
 	
@@ -141,21 +150,16 @@ class AbilityBase extends FlxSprite
 	 * should always be put to walk, only use run for a secondary faster movement
 	 * style. Climb substitutes for walk, shiftclimb is secondary movement
 	 * version of climb.
-	 * @param	moveType	The move style, from the MoveStyle enum
-	 * @param	accel		Acceleration of this move declaration
-	 * @param	maxSpeed	Maximum speed for this move declaration
 	 */
-	function SetMove(moveType : MoveStyleDirectory, baseSpeed : Int, maxSpeed : Int = 0) : Void
+	function SetMove(movementProfile : MoveProfile) : Void
 	{		
-		switch(moveType)
+		switch(movementProfile.moveType)
 		{
 			// Set walk as base movement, with speed and max
 			case WALK:
 				_lrMovement = Walk;
 				
-				_baseSpeed = new SpeedProfile();
-				_baseSpeed.accel = baseSpeed;
-				_baseSpeed.max = maxSpeed;
+				_baseSpeed = movementProfile;
 				
 				_currentSpeed = _baseSpeed;
 				maxVelocity.set(_currentSpeed.max, _maxFall);
@@ -164,17 +168,15 @@ class AbilityBase extends FlxSprite
 			case CLIMB:
 				_lrMovement = WalkClimb;
 				
-				_baseSpeed = new SpeedProfile();
-				_baseSpeed.accel = baseSpeed;
-				_baseSpeed.max = maxSpeed;
+				_baseSpeed = movementProfile;
 				
 				_currentSpeed = _baseSpeed;
 				maxVelocity.set(_currentSpeed.max, _maxFall);
 				
-				_climbSpeed = Std.int(baseSpeed / 2);
+				_climbSpeed = Std.int(_baseSpeed.accel / 2);
 				
 			case RUN:
-				SetShiftedMove(moveType, baseSpeed, maxSpeed);
+				SetShiftedMove(movementProfile);
 		}
 	}
 	
@@ -189,9 +191,11 @@ class AbilityBase extends FlxSprite
 	 * @param	accel		Acceleration of this move declaration
 	 * @param	maxSpeed	Maximum speed for this move declaration
 	 */
-	function SetShiftedMove(moveType : MoveStyleDirectory, baseSpeed : Int, maxSpeed : Int = 0) : Void
-	{		
-		switch(moveType)
+	function SetShiftedMove(movementProfile : MoveProfile) : Void
+	{
+	FlxG.log.add("ShiftMove set.");
+		
+		switch(movementProfile.moveType)
 		{
 			case WALK:
 				// Nothing happens!
@@ -200,19 +204,15 @@ class AbilityBase extends FlxSprite
 			case RUN:
 				_lrMovementShifted = Run;
 				
-				_shiftedSpeed = new SpeedProfile();
-				_shiftedSpeed.accel = baseSpeed;
-				_shiftedSpeed.max = maxSpeed;
+				_shiftedSpeed = movementProfile;
 				
 			// Set climb speed and max as a shifted move type
 			case CLIMB:
 				_lrMovementShifted = WalkClimb;
 			
-				_shiftedSpeed = new SpeedProfile();
-				_shiftedSpeed.accel = baseSpeed;
-				_shiftedSpeed.max = maxSpeed;
+				_shiftedSpeed = movementProfile;
 				
-				_climbSpeed = Std.int(baseSpeed / 2);
+				_climbSpeed = Std.int(movementProfile.accel / 2);
 		}
 	}
 	
@@ -227,7 +227,7 @@ class AbilityBase extends FlxSprite
 	 * @param	baseStrength	Jump/hover strength, acceleration for movestyles, etc.
 	 * @param	maxStrength		Move speed cap, etc.
 	 */
-	public function AddAbility(newSkill : AbilityDirectory, 
+	function addAbility(newSkill : AbilityDirectory, 
 								triggerCheck : Void -> Bool,
 								?baseStrength : Int = 0,
 								?maxStrength : Int = 0) : Void
@@ -235,10 +235,10 @@ class AbilityBase extends FlxSprite
 		switch (newSkill)
 		{
 			case RUN:
-				SetShiftedMove(RUN, baseStrength, maxStrength);
+				SetShiftedMove(new MoveProfile(RUN, baseStrength, maxStrength));
 				_actionList.push(new ActionSet(MoveShiftOn, MoveShiftOff, triggerCheck));
 			case CLIMB:
-				SetShiftedMove(CLIMB, baseStrength, maxStrength);
+				SetShiftedMove(new MoveProfile(CLIMB, baseStrength, maxStrength));
 				_actionList.push(new ActionSet(MoveShiftOn, MoveShiftOff, triggerCheck));
 				
 			case JUMP:

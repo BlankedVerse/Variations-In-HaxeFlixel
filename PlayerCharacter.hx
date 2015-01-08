@@ -35,28 +35,24 @@ class PlayerConstants
 class PlayerCharacter extends AbilityBase
 {
 	var _controller : Controller = null;
+	var _reincarnateButton : ActionButton = null;
 	
 	//var _skillScreen : abilitySelectMenu = new abilitySelectMenu();
+	var _inSkillMenu : Bool = false;
 	
-
 	public function new(X:Float=0, Y:Float=0, controls:Controller) 
 	{
 		super(X, Y);
 		
 		PhasesThroughWalls = false;
 		
-		
 		_controller = controls;
 		
+		_reincarnateButton = _controller.SetButton(WorldWideKeys.Reincarnate, null, TOGGLE);
 		
-		//SetMove(WALK, PlayerConstants.kSpeed, PlayerConstants.kMaxSpeed);
-		SetMove(CLIMB, PlayerConstants.kSpeed, PlayerConstants.kMaxSpeed);
+		SetMove(new MoveProfile(CLIMB, PlayerConstants.kSpeed, PlayerConstants.kMaxSpeed));
 		
-		var _actionOneButton = _controller.SetButton(WorldWideKeys.ActionOne, null, KeyStyle.HOLD);
-		var _actionTwoButton = _controller.SetButton(WorldWideKeys.ActionTwo, null, KeyStyle.HOLD);
-		
-		AddAbility(HOVER, _actionOneButton.GetKeyInput);
-		AddAbility(DASH, _actionTwoButton.GetKeyInput);
+		AbilitySet(WALLJUMP, DASH, null);
 		
 		makeGraphic(30,30, FlxColor.SALMON);
 	}
@@ -70,16 +66,17 @@ class PlayerCharacter extends AbilityBase
 	 * @param	triggerCheck	When the ability should be triggered. Use Permanent
 	 * 							to make it always triggered.
 	 */
-	override public function AddAbility(newSkill : AbilityDirectory, 
+	override function addAbility(newSkill : AbilityDirectory, 
 								triggerCheck : Void -> Bool,
 								?baseStrength : Int = 0,
 								?maxStrength : Int = 0) : Void
 	{
+		
 		// If a specific baseStrength or maxStrength are entered...
 		if ((baseStrength != 0) || (maxStrength != 0))
 		{
 			// Use them.
-			super.AddAbility(newSkill, triggerCheck, baseStrength, maxStrength);
+			super.addAbility(newSkill, triggerCheck, baseStrength, maxStrength);
 		}
 		// Otherwise, use defaults from the constants list.
 		else
@@ -87,23 +84,23 @@ class PlayerCharacter extends AbilityBase
 			switch (newSkill)
 			{
 				case RUN:
-					super.AddAbility(RUN, triggerCheck, 
+					super.addAbility(RUN, triggerCheck, 
 							PlayerConstants.kRunSpeed, PlayerConstants.kRunMax);
 				case CLIMB:
-					super.AddAbility(CLIMB, triggerCheck, 
+					super.addAbility(CLIMB, triggerCheck, 
 							PlayerConstants.kSpeed, PlayerConstants.kMaxSpeed);
 					
 				case JUMP:
-					super.AddAbility(JUMP, triggerCheck, PlayerConstants.kJump);
+					super.addAbility(JUMP, triggerCheck, PlayerConstants.kJump);
 				case WALLJUMP:
-					super.AddAbility(WALLJUMP, triggerCheck, PlayerConstants.kJump);
+					super.addAbility(WALLJUMP, triggerCheck, PlayerConstants.kJump);
 					
 				case HOVER:
-					super.AddAbility(HOVER, triggerCheck, PlayerConstants.kHoverUp);
+					super.addAbility(HOVER, triggerCheck, PlayerConstants.kHoverUp);
 					
 				// For abilities that don't require strengths, just call the super.
 				default:
-					super.AddAbility(newSkill, triggerCheck);
+					super.addAbility(newSkill, triggerCheck);
 			}
 		}
 	}
@@ -118,21 +115,54 @@ class PlayerCharacter extends AbilityBase
 	
 	
 	
+	public function AbilitySet (primeAbility : AbilityDirectory,
+								secondAbility : AbilityDirectory,
+								passives : Array<AbilityDirectory>) : Void
+	{
+		var _actionOneButton = _controller.SetButton(WorldWideKeys.ActionOne, null, KeyStyle.HOLD);
+		var _actionTwoButton = _controller.SetButton(WorldWideKeys.ActionTwo, null, KeyStyle.HOLD);
+		
+		ClearAbilities();
+		
+		addAbility(primeAbility, _actionOneButton.GetKeyInput);
+		addAbility(secondAbility, _actionTwoButton.GetKeyInput);
+		
+		if (passives != null)
+		{
+			for (ability in passives)
+			{
+				addAbility(ability, Permanent);
+			}
+		}
+	}
+	
+	
+	
 	/**
 	 * Update the character.
 	 */
 	override public function update() : Void
 	{
+		_inSkillMenu = _reincarnateButton.GetKeyInput();
+		
 		// If in ability-swapping mode, only update that and not the player character.
-		//if (swapping out abilities)
-		//{
+		if (_inSkillMenu)
+		{
 			//_skillScreen.update();
-		//}
+			// If skillScreen finishes
+			//if (_skillScreen.Finished)
+			//{
+				//SetMove(_skillScreen.Movement);
+				//AbilitySet(_skillScreen.AbilityOne, _skillScreen.AbilityTwo, _skillScreen.Passives);
+				//_inSkillMenu = false;
+			//}
+		}
 		// Otherwise, perform a standard update.
-		//else
-		//{
+		else
+		{
 			super.update();
-		//}
+			//_inSkillMenu = _reincarnateButton.GetKeyInput();
+		}
 	}
 	
 	

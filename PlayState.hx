@@ -1,5 +1,6 @@
 package;
 
+import flixel.FlxBasic;
 import flixel.FlxG;
 import flixel.FlxSprite;
 import flixel.FlxState;
@@ -46,15 +47,15 @@ class PlayState extends FlxState
 	 */
 	override public function create():Void
 	{
+		// Set control key lists to default (or saved user selections.)
 		_actionOne.push(ControlDefaults.kActionOne);
 		_actionTwo.push(ControlDefaults.kActionTwo);
 		_reincarnate.push(ControlDefaults.kReincarnate);
 		
-		// Set controls.
-		gameController.SetButton(WorldWideKeys.ActionOne, _actionOne, KeyStyle.PRESS);
+		// Set controls buttons.
+		gameController.SetButton(WorldWideKeys.ActionOne, _actionOne, KeyStyle.HOLD);
 		gameController.SetButton(WorldWideKeys.ActionTwo, _actionTwo, KeyStyle.HOLD);
-		
-		gameController.SetButton(WorldWideKeys.Reincarnate, _reincarnate, KeyStyle.PRESS);
+		gameController.SetButton(WorldWideKeys.Reincarnate, _reincarnate, KeyStyle.HOLD);
 		
 		// Load map, calling in the controller so it can be tied to the player character.
 		_level = new TiledLevel (WorldWideKeys.TestingLevelPath, gameController);
@@ -97,7 +98,6 @@ class PlayState extends FlxState
 	
 		levelCollisions();
 	}
-	
 	
 	
 	public function levelCollisions() : Void
