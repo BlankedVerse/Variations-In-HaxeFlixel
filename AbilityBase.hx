@@ -19,6 +19,7 @@ enum MoveStyleDirectory
 
 enum AbilityDirectory
 {
+	NONE;
 	RUN;
 	CLIMB;
 	JUMP;
@@ -39,7 +40,7 @@ class CharacterConstants
 	public inline static var kBaseFallSpeed : Int = 800;
 	
 	public inline static var kJumpGhosting : Int = 6;
-	public inline static var kJumpHold : Int = 20;
+	public inline static var kJumpHold : Int = 14;
 	
 	public inline static var kHoverDuration : Int = 30;
 	
@@ -257,6 +258,8 @@ class AbilityBase extends FlxSprite
 				_actionList.push(new ActionSet(DashCharge, DashRelease, triggerCheck));
 			case PHASE:
 				_actionList.push(new ActionSet(PhaseShifted, PhaseUnshifted, triggerCheck));
+			case NONE:
+				//Nothing!
 		}
 	}
 	
@@ -454,7 +457,11 @@ class AbilityBase extends FlxSprite
 		if (_jumpReleased) 
 		{
 			// If the character is touching a wall but not the floor...
-			if ((isTouching(FlxObject.WALL)) && (!isTouching(FlxObject.FLOOR)))
+			if (
+				(isTouching(FlxObject.WALL)) 
+				&& (!isTouching(FlxObject.FLOOR))
+				&& (_jumpHold == 0)
+				)
 			{
 				// Do a jump...
 				velocity.y -= _jumpStrength;

@@ -131,7 +131,12 @@ class TiledLevel extends TiledMap
 		switch (o.type.toLowerCase())
 		{
 			// Switch the different types of critters here.
+<<<<<<< HEAD
 			case "player":
+=======
+			//case "player":
+			case "checkpoint":
+>>>>>>> origin/master
 				// Define and set the critter.
 				player = new PlayerCharacter(x, y, playerOneControls);
 				state.add(player);

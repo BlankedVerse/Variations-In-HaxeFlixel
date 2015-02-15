@@ -23,7 +23,7 @@ class PlayerConstants
 	public inline static var kRunMax : Int = 400;
 	
 	public inline static var kJump : Int = 200;
-	public inline static var kHoverUp : Int = 280;
+	public inline static var kHoverUp : Int = 250;
 }
 
 
@@ -51,9 +51,13 @@ class PlayerCharacter extends AbilityBase
 		
 		_reincarnateButton = _controller.SetButton(WorldWideKeys.Reincarnate, null, TOGGLE);
 		
-		SetMove(new MoveProfile(CLIMB, PlayerConstants.kSpeed, PlayerConstants.kMaxSpeed));
+		SetMove(new MoveProfile(WALK, PlayerConstants.kSpeed, PlayerConstants.kMaxSpeed));
 		
+<<<<<<< HEAD
 		AbilitySet(WALLJUMP, HOVER, null);
+=======
+		AbilitySet(WALLJUMP, CLIMB, null);
+>>>>>>> origin/master
 		
 		makeGraphic(30,30, FlxColor.SALMON);
 	}
