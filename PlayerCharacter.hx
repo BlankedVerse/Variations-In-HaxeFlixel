@@ -8,6 +8,7 @@ import flixel.util.FlxColor;
 
 import AbilityBase;
 import Controller;
+import UIFrame;
 
 import WorldWideKeys;
 
@@ -52,7 +53,7 @@ class PlayerCharacter extends AbilityBase
 		
 		SetMove(new MoveProfile(CLIMB, PlayerConstants.kSpeed, PlayerConstants.kMaxSpeed));
 		
-		AbilitySet(WALLJUMP, DASH, null);
+		AbilitySet(WALLJUMP, HOVER, null);
 		
 		makeGraphic(30,30, FlxColor.SALMON);
 	}
@@ -160,6 +161,7 @@ class PlayerCharacter extends AbilityBase
 		// Otherwise, perform a standard update.
 		else
 		{
+			
 			super.update();
 			//_inSkillMenu = _reincarnateButton.GetKeyInput();
 		}
